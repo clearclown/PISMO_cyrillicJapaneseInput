@@ -75,3 +75,9 @@ Pismo内の「設定」→「キーボードの種類」から配列を選びま
 - TestFlight：審査提出前に端末へ配布して動作確認するAppleのサービス。
 
 実装の問題は[リポジトリのIssues](https://github.com/clearclown/PISMO_cyrillicJapaneseInput/issues)に再現手順を残してください。入力した文章や個人情報は削除してから共有します。
+
+## App Store Connectで必須項目の不足が表示された場合
+
+「13-inch iPad displays」のエラーは、バージョン画面の「iPad」→「13\" Display」へ、`screenshots/ipad-arabic.png`、`ipad-persian.png`、`ipad-zhuyin.png`を登録して解消します。3枚とも2064×2752ピクセルで、同画面に表示される受け入れサイズと一致します。
+
+「Japanese — What’s New in This Version」のエラーは、言語をJapaneseにして「What's New in This Version」へ[WHATS_NEW_JA.txt](WHATS_NEW_JA.txt)の内容を入力します。保存後、「Add for Review」を再実行してエラーが消えることを確認してください。
