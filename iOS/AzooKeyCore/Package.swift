@@ -59,6 +59,9 @@ let package = Package(
         ),
     ],
     dependencies: [
+        .package(path: "../PismoInputCore"),
+        .package(url: "https://github.com/apple/swift-collections", exact: "1.1.4"),
+        .package(url: "https://github.com/apple/swift-numerics", exact: "1.1.1"),
         // Dependencies declare other packages that this package depends on.
         // MARK: You must specify version which results reproductive and stable result
         // MARK: `_: .upToNextMinor(Version)` or `exact: Version` or `revision: Version`.
@@ -88,6 +91,7 @@ let package = Package(
         .target(
             name: "KeyboardViews",
             dependencies: [
+                .product(name: "RealModule", package: "swift-numerics"),
                 "SwiftUIUtils",
                 "KeyboardThemes",
                 "KeyboardExtensionUtils",
@@ -100,6 +104,8 @@ let package = Package(
         .target(
             name: "AzooKeyUtils",
             dependencies: [
+                .product(name: "PismoInputCore", package: "PismoInputCore"),
+                .product(name: "OrderedCollections", package: "swift-collections"),
                 "KeyboardThemes",
                 "KeyboardViews",
             ] + (isXcodeVersion26 ? xcode26AdditionalTargetDependency : []),

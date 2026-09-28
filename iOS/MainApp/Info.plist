@@ -66,7 +66,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSContactsUsageDescription</key>
-	<string>Use contacts to better conversion using name data</string>
+	<string>連絡先の名前を端末内の変換候補に追加します。連絡先をサーバーへ送信しません。</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>PismoIcon-Regular.otf</string>
@@ -85,7 +85,7 @@
 	</dict>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>armv7</string>
+		<string>arm64</string>
 	</array>
 	<key>UIStatusBarTintParameters</key>
 	<dict>
@@ -101,6 +101,13 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UISupportsDocumentBrowser</key>
 	<true/>

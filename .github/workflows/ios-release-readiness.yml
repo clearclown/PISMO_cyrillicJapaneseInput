@@ -1,0 +1,44 @@
+name: iOS release readiness
+on:
+  pull_request:
+    paths: ['iOS/**', 'scripts/**', '.github/workflows/ios-release-readiness.yml']
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare pinned resources
+        run: python3 scripts/prepare_ios_resources.py
+      - name: Test phonetic input
+        run: swift test --package-path iOS/PismoInputCore
+      - name: Check release files
+        run: python3 scripts/validate_ios_release.py
+      - name: Select iPhone and iPad simulators
+        run: |
+          xcrun simctl list devices available -j > "$RUNNER_TEMP/devices.json"
+          PISMO_SIMULATOR_ID=$(python3 -c 'import json,os; d=json.load(open(os.environ["RUNNER_TEMP"]+"/devices.json")); print(next(v["udid"] for group in d["devices"].values() for v in group if v["name"].startswith("iPhone")))')
+          echo "PISMO_SIMULATOR_ID=$PISMO_SIMULATOR_ID" >> "$GITHUB_ENV"
+          PISMO_IPAD_ID=$(python3 -c 'import json,os; d=json.load(open(os.environ["RUNNER_TEMP"]+"/devices.json")); print(next(v["udid"] for group in d["devices"].values() for v in group if v["name"].startswith("iPad")))')
+          echo "PISMO_IPAD_ID=$PISMO_IPAD_ID" >> "$GITHUB_ENV"
+      - name: Test iOS integration and app guides
+        run: |
+          xcodebuild -project iOS/Pismo.xcodeproj -scheme MainApp \
+            -destination "platform=iOS Simulator,id=$PISMO_SIMULATOR_ID" \
+            -parallel-testing-enabled NO \
+            -only-testing:PismoTests/MultiscriptInputTests -only-testing:PismoUITests \
+            -only-testing:PismoTests/ConverterTests -only-testing:PismoTests/DicdataStoreTests \
+            -skip-testing:PismoTests/ConverterTests/testMozcEvaluationData \
+            -resultBundlePath build/Tests.xcresult CODE_SIGNING_ALLOWED=NO test
+      - name: Test iPad guides and landscape
+        run: |
+          xcodebuild -project iOS/Pismo.xcodeproj -scheme MainApp \
+            -destination "platform=iOS Simulator,id=$PISMO_IPAD_ID" \
+            -parallel-testing-enabled NO -only-testing:PismoUITests \
+            -resultBundlePath build/iPadTests.xcresult CODE_SIGNING_ALLOWED=NO test-without-building
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-test-results
+          path: build/*Tests.xcresult

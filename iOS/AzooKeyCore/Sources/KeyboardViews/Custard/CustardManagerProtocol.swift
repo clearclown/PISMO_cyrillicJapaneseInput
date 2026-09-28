@@ -18,6 +18,9 @@ public protocol CustardManagerProtocol {
 public extension CustardManagerProtocol {
     func custard(identifier: String) throws -> Custard {
         switch identifier {
+        case "arabic_japanese": return .arabicJapanese
+        case "persian_japanese": return .persianJapanese
+        case "zhuyin_japanese": return .zhuyinJapanese
         case "english_flick":
             return .flickEnglish
         case "japanese_flick":

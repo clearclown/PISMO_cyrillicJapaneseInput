@@ -152,6 +152,11 @@ final class KeyboardActionManager: UserActionManager, @unchecked Sendable {
         var undoAction: ActionType?
         switch action {
         case let .input(text, simpleInsert):
+            if case let .custard(custard) = variableStates.tabManager.existentialTab() {
+                inputManager.setInputProfile(for: custard.identifier)
+            } else {
+                inputManager.setInputProfile(for: nil)
+            }
             self.textEditingActionDidBegin(variableStates: variableStates)
             let isShifted = variableStates.boolStates.isCapsLocked || variableStates.boolStates.isShifted
             if isShifted && [.en_US, .el_GR].contains(variableStates.keyboardLanguage) {
@@ -259,11 +264,11 @@ final class KeyboardActionManager: UserActionManager, @unchecked Sendable {
             self.dismissReportInterfacesIfNeeded(variableStates: variableStates)
             variableStates.setTab(type)
 
-            // タブ移動時にキリル文字プロファイルを同期する
-            if let existentialTab = try? variableStates.tabManager.existentialTab() {
-                if case let .custard(custard) = existentialTab {
-                    self.inputManager.setCyrillicProfile(for: custard.identifier)
-                }
+            // Match the converter to the actual keyboard, including initial/custom layouts.
+            if case let .custard(custard) = variableStates.tabManager.existentialTab() {
+                self.inputManager.setInputProfile(for: custard.identifier)
+            } else {
+                self.inputManager.setInputProfile(for: nil)
             }
 
         case let .setUpsideComponent(type):

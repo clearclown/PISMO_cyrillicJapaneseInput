@@ -19,7 +19,12 @@ extension LanguageLayout {
             // Legacy layouts - redirect to Cyrillic Standard
             return "ロシア語(JCUKEN)"
         case let .custard(identifier):
-            return LocalizedStringKey(identifier)
+            switch identifier {
+            case "arabic_japanese": return "アラビア文字"
+            case "persian_japanese": return "ペルシャ文字"
+            case "zhuyin_japanese": return "台湾華語・注音"
+            default: return LocalizedStringKey(identifier)
+            }
         case .cyrillicStandard:
             return "ロシア語(JCUKEN)"
         case .cyrillicUkrainian:
@@ -98,8 +103,11 @@ struct LanguageLayoutSettingView<SettingKey: LanguageLayoutKeyboardSetting>: Vie
         self.setTogether = setTogether
         self._selection = State(initialValue: SettingKey.value)
         self.types = {
-            // Pismo: Cyrillic keyboards only - no flick/qwerty
+            // Built-in phonetic layouts, followed by user-made layouts.
             var layouts: [LanguageLayout] = [
+                .custard("arabic_japanese"),
+                .custard("persian_japanese"),
+                .custard("zhuyin_japanese"),
                 .cyrillicStandard,
                 .cyrillicUkrainian,
                 .cyrillicBelarusian,

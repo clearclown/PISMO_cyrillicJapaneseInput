@@ -20,6 +20,12 @@ struct SettingTabView: View {
     var body: some View {
         NavigationStack(path: $path) {
             Form {
+                Section("文字で日本語を入力") {
+                    NavigationLink("アラビア文字・ペルシャ文字・注音の使い方") {
+                        MultiscriptGuideView()
+                    }
+                }
+                .searchKeys("アラビア", "ペルシャ", "注音", "台湾", "使い方")
                 Section("キーボードの種類") {
                     NavigationLink("キーボードの種類を設定する") {
                         KeyboardLayoutTypeDetailsView()
@@ -180,12 +186,9 @@ struct SettingTabView: View {
                         ContactView()
                     }
                     .searchKeys("お問い合わせ", "質問", "連絡", "メール")
-                    FallbackLink("プライバシーポリシー", destination: URL(string: "https://pismo-web-page.vercel.app/privacy")!)
+                    NavigationLink("プライバシーポリシー") { PrivacyPolicyView() }
                         .foregroundStyle(.primary)
                         .searchKeys("プライバシーポリシー", "個人情報", "ライセンス")
-                    FallbackLink("利用規約", destination: URL(string: "https://pismo-web-page.vercel.app/privacy")!)
-                        .foregroundStyle(.primary)
-                        .searchKeys("利用規約", "規約", "ライセンス")
                     NavigationLink("更新履歴") {
                         UpdateInformationView()
                     }

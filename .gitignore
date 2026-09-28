@@ -40,3 +40,11 @@ build/
 
 # Critical files - DO NOT COMMIT
 important/
+
+# SwiftPM local build products
+.build/
+__pycache__/
+# Pinned downloadable resources (scripts/prepare_ios_resources.py)
+iOS/zenz-v3.1-*-gguf/
+iOS/pismo_emoji_dictionary_storage/
+!iOS/Pismo.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved

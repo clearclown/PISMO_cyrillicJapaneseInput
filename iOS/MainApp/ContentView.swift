@@ -46,6 +46,9 @@ struct ContentView: View {
                     .tag(TabSelection.settings)
             }
             .onAppear {
+                #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("--pismo-ui-testing") { return }
+                #endif
                 if appStates.isKeyboardActivated && !appStates.tutorialFinishedSuccessfully() {
                     appStates.requireFirstOpenView = true
                 }

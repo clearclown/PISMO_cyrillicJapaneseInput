@@ -489,30 +489,10 @@ final class KeyboardViewController: UIInputViewController {
         KeyboardViewController.variableStates.setTextContentType(self.textDocumentProxy.textContentType)
     }
 
-    /// Reference: https://stackoverflow.com/questions/79077018/unable-to-open-main-app-from-action-extension-in-ios-18-previously-working-met
-    @objc @discardableResult func openURL(_ url: URL) -> Bool {
-        var responder: UIResponder? = self
-        while let r = responder {
-            if let application = r as? UIApplication {
-                if #available(iOS 18.0, *) {
-                    application.open(url, options: [:], completionHandler: nil)
-                    return true
-                } else {
-                    return application.perform(#selector(openURL(_:)), with: url) != nil
-                }
-            }
-            responder = r.next
-        }
-        return false
-    }
-
     func openApp(scheme: String) {
-        // 日本語のURLは使えないので、パーセントエンコーディングを適用する
-        guard let encoded = scheme.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: encoded) else {
-            debug("無効なschemeです", scheme, scheme.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? scheme)
-            return
-        }
-        self.openURL(url)
+        // App Review 4.4.1 permits keyboard extensions to open Settings only.
+        guard scheme == UIApplication.openSettingsURLString,
+              let url = URL(string: scheme) else { return }
+        extensionContext?.open(url, completionHandler: nil)
     }
 }

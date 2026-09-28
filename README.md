@@ -1,11 +1,11 @@
-# Pismo - Cyrillic Japanese Keyboard
+# Pismo - Multiscript Japanese Keyboard
 
 <p align="center">
   <img src="docs/appstore/pics/0_pismo_icon.png" alt="Pismo Icon" width="200"/>
 </p>
 
 <p align="center">
-  <strong>キリル文字で日本語を入力するiOS/iPadOSキーボード</strong>
+  <strong>キリル文字・アラビア文字・ペルシャ文字・注音で日本語を入力するiOS/iPadOSキーボード</strong>
 </p>
 
 <p align="center">
@@ -24,6 +24,18 @@
 ---
 
 ## README 日本語
+
+### 1.3で追加した日本語入力
+
+アラビア文字・ペルシャ文字・台湾華語の注音を、かなと漢字の入力につなげました。配列はアプリの設定、またはキーボード上部の文字ボタンで選べます。入力例を試すガイドは「設定」から開けます。
+
+| 文字 | 入力例 | 読み |
+| --- | --- | --- |
+| アラビア文字 | نيهۆن | にほん |
+| ペルシャ文字 | نیهۆن | にほん |
+| 台湾華語・注音 | ㄋㄧㄏㄛㄣ | にほん |
+
+日本語の音を指定するPismo独自の入力方式です。原語の文章を翻訳する機能ではありません。App Storeへの提出手順と未確認項目は [RELEASE.md](docs/appstore/RELEASE.md) に記載しています。
 
 ### Pismoとは
 
@@ -66,7 +78,8 @@
 
 ### 主な機能
 
-- **5言語対応キーボード**
+- **複数の文字・言語のキーボード**
+  - アラビア文字・ペルシャ文字・台湾華語の注音
   - ロシア語 (Русский)
   - ウクライナ語 (Українська)
   - ベラルーシ語 (Беларуская)
@@ -82,7 +95,7 @@
   - ニューラルかな漢字変換システム「Zenzai」搭載
 
 - **プライバシー重視**
-  - 入力データをサーバーに送信しません
+  - 通常の入力は端末内で処理します。利用者が確認して送る任意のレポート・単語提案を除き、入力内容を送信しません
   - オフラインで完全に動作
 
 <p align="center">
@@ -92,7 +105,7 @@
 
 ### インストール
 
-App Storeで「Pismo」を検索するか、以下のリンクからダウンロードしてください。
+App Storeへの提出を準備しています。配布リンクは公開後に掲載します。
 
 <!-- App Store公開後にリンクを追加 -->
 *App Store リンク: 公開準備中*
@@ -248,8 +261,12 @@ https://github.com/google/mozc
 ### ビルド方法
 
 ```bash
-# リポジトリをクローン（サブモジュール含む）
-git clone https://github.com/clearclown/cyrillicJapaneseInput --recursive
+# リポジトリと、固定バージョンのモデル・絵文字辞書を取得
+git clone https://github.com/clearclown/PISMO_cyrillicJapaneseInput
+cd PISMO_cyrillicJapaneseInput
+python3 scripts/prepare_ios_resources.py
+swift test --package-path iOS/PismoInputCore
+python3 scripts/validate_ios_release.py
 
 # iOSプロジェクトを開く
 open iOS/Pismo.xcodeproj

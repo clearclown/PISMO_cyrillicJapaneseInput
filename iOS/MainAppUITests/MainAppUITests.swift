@@ -1,43 +1,46 @@
-//
-//  KanaKanjierUITests.swift
-//  KanaKanjierUITests
-//
-//  Created by ensan on 2020/09/03.
-//  Copyright © 2020 ensan. All rights reserved.
-//
-
 import XCTest
+import UIKit
 
-class KanaKanjierUITests: XCTestCase {
-
+final class PismoUITests: XCTestCase {
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-
-        // In UI tests it is usually best to stop immediately when a failure occurs.
         continueAfterFailure = false
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
     }
 
-    override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
-    }
-
-    func testExample() throws {
-        // UI tests must launch the application that they test.
+    @MainActor func testAllScriptGuidesShowJapaneseOutput() {
         let app = XCUIApplication()
+        app.launchArguments = ["--pismo-ui-testing", "-AppleLanguages", "(ja)", "-AppleLocale", "ja_JP"]
         app.launch()
-
-        // Use recording to get started writing UI tests.
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
+        let settings = app.buttons["設定"].firstMatch
+        XCTAssertTrue(settings.waitForExistence(timeout: 20))
+        settings.tap()
+        app.buttons["アラビア文字・ペルシャ文字・注音の使い方"].tap()
+        let result = app.staticTexts["scriptResult"]
+        XCTAssertTrue(result.waitForExistence(timeout: 10))
+        XCTAssertTrue(result.label.hasSuffix("にほん"), result.label)
+        saveScreenshot("Arabic guide")
+        for (label, source, title) in [
+            ("ペルシャ文字", "نیهۆن", "Persian guide"),
+            ("台湾華語・注音", "ㄋㄧㄏㄛㄣ", "Zhuyin guide")
+        ] {
+            app.buttons["scriptPicker"].tap()
+            app.buttons[label].tap()
+            XCTAssertEqual(app.textFields["scriptSource"].value as? String, source)
+            XCTAssertTrue(result.label.hasSuffix("にほん"), result.label)
+            saveScreenshot(title)
+        }
+        if UIDevice.current.userInterfaceIdiom == .pad {
+            XCUIDevice.shared.orientation = .landscapeLeft
+            defer { XCUIDevice.shared.orientation = .portrait }
+            XCTAssertTrue(result.waitForExistence(timeout: 5))
+            XCTAssertTrue(result.label.hasSuffix("にほん"))
+            saveScreenshot("iPad landscape guide")
+        }
     }
 
-    func testLaunchPerformance() throws {
-        if #available(macOS 10.15, iOS 14.0, tvOS 13.0, *) {
-            // This measures how long it takes to launch your application.
-            measure(metrics: [XCTApplicationLaunchMetric()]) {
-                XCUIApplication().launch()
-            }
-        }
+    @MainActor private func saveScreenshot(_ name: String) {
+        let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
+        attachment.name = name
+        attachment.lifetime = .keepAlways
+        add(attachment)
     }
 }

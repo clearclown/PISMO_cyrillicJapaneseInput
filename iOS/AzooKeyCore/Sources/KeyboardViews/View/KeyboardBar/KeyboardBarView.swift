@@ -15,6 +15,7 @@ struct KeyboardBarView<Extension: ApplicationSpecificKeyboardViewExtension>: Vie
     @EnvironmentObject private var variableStates: VariableStates
     @Binding private var isResultViewExpanded: Bool
     @Environment(Extension.Theme.self) private var theme
+    @Environment(\.userActionManager) private var action
     // CursorBarは操作がない場合に非表示にする。これをハンドルするためのタスク
     @State private var dismissTask: Task<(), any Error>?
 
@@ -31,6 +32,29 @@ struct KeyboardBarView<Extension: ApplicationSpecificKeyboardViewExtension>: Vie
     }
 
     var body: some View {
+        HStack(spacing: 0) {
+            Menu {
+                scriptButton("キリル文字", identifier: "cyrillic_standard")
+                scriptButton("العربية · アラビア文字", identifier: "arabic_japanese")
+                scriptButton("فارسی · ペルシャ文字", identifier: "persian_japanese")
+                scriptButton("ㄅㄆㄇ · 台湾華語の注音", identifier: "zhuyin_japanese")
+            } label: {
+                Image(systemName: "character.bubble")
+                    .frame(minWidth: 44, minHeight: 36)
+            }
+            .accessibilityLabel("入力文字を選ぶ")
+            .accessibilityIdentifier("inputScriptMenu")
+            barContent
+        }
+    }
+
+    private func scriptButton(_ title: String, identifier: String) -> some View {
+        Button(title) {
+            action.registerActions([.moveTab(.custom(identifier))], variableStates: variableStates)
+        }
+    }
+
+    @ViewBuilder private var barContent: some View {
         switch variableStates.barState {
         case .cursor:
             Group {

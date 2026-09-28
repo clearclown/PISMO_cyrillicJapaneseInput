@@ -124,6 +124,18 @@ final class InputManager {
     private var updateResult: (((inout ResultModel) -> Void) -> Void)?
 
     private let cyrillicConverter = CyrillicKanaConverter()
+    private var scriptComposition = ScriptComposition()
+    private var inputScript: ScriptKanaConverter.Script?
+    private var inputProfileIdentifier: String?
+
+    @MainActor func setInputProfile(for identifier: String?) {
+        guard identifier != inputProfileIdentifier else { return }
+        inputProfileIdentifier = identifier
+        let script = identifier.flatMap(ScriptKanaConverter.Script.init(rawValue:))
+        if script != inputScript { scriptComposition.reset() }
+        inputScript = script
+        if let identifier { setCyrillicProfile(for: identifier) }
+    }
 
     /// 元のキリル文字入力を追跡（変換前の状態を保持）
     private var originalCyrillicInput: String = ""
@@ -216,18 +228,25 @@ final class InputManager {
             case .medium: (1, Self.zenzSmallWeightURL)
             case .low: (2, Self.zenzXsmallWeightURL)
             }
-            zenzaiMode = .on(
-                weight: weightURL,
-                inferenceLimit: inferenceLimit,
-                personalizationMode: nil,
-                versionDependentMode: .v3(.init(leftSideContext: self.getSurroundingText().leftText, maxLeftSideContextLength: 20))
-            )
+            if FileManager.default.fileExists(atPath: weightURL.path) {
+                zenzaiMode = .on(
+                    weight: weightURL,
+                    inferenceLimit: inferenceLimit,
+                    personalizationMode: nil,
+                    versionDependentMode: .v3(.init(leftSideContext: self.getSurroundingText().leftText, maxLeftSideContextLength: 20))
+                )
+            } else {
+                zenzaiMode = .off
+            }
         } else {
             zenzaiMode = .off
         }
 
         return ConvertRequestOptions(
             N_best: 10,
+            // Native-script syllables have already been resolved explicitly.
+            // Preserve that reading instead of correcting it as a kana-key typo.
+            needTypoCorrection: inputScript == nil ? nil : false,
             requireJapanesePrediction: requireJapanesePrediction,
             requireEnglishPrediction: requireEnglishPrediction,
             keyboardLanguage: keyboardLanguage,
@@ -423,6 +442,8 @@ final class InputManager {
 
     /// 変換を選択した場合に呼ばれる
     @MainActor func complete(candidate: Candidate) {
+        scriptComposition.reset()
+        originalCyrillicInput = ""
         self.updateLog(candidate: candidate)
         self.composingText.prefixComplete(composingCount: candidate.composingCount)
         if self.displayedTextManager.shouldSkipMarkedTextChange {
@@ -447,6 +468,8 @@ final class InputManager {
 
     /// 入力を停止する。DisplayedTextには特に何もしない。
     @MainActor func stopComposition() {
+        scriptComposition.reset()
+        originalCyrillicInput = ""
         self.composingText.stopComposition()
         self.displayedTextManager.stopComposition()
         self.liveConversionManager.stopComposition()
@@ -479,6 +502,8 @@ final class InputManager {
     /// - parameters:
     ///  - shouldModifyDisplayedText: DisplayedTextを操作して良いか否か。`textDidChange`などの場合は操作してはいけない。
     @MainActor func enter(shouldModifyDisplayedText: Bool = true, requireSetResult: Bool = true) -> [ActionType] {
+        scriptComposition.reset()
+        originalCyrillicInput = ""
         // selectedの場合、単に変換を止める
         if isSelected {
             self.stopComposition()
@@ -533,6 +558,8 @@ final class InputManager {
     }
 
     @MainActor func deleteSelection() {
+        scriptComposition.reset()
+        originalCyrillicInput = ""
         // 選択部分を削除する
         self.previousSystemOperation = .removeSelection
         self.displayedTextManager.deleteBackward(count: 1)
@@ -549,39 +576,45 @@ final class InputManager {
     ///   - simpleInsert: `ComposingText`を作るのではなく、直接文字を入力し、変換候補を表示しない。
     ///   - inputStyle: 入力スタイル
     @MainActor func input(text: String, requireSetResult: Bool = true, simpleInsert: Bool = false, inputStyle: InputStyle) {
-        // キリル文字入力のインターセプト
-        if !simpleInsert && text.range(of: "\\p{Cyrillic}", options: .regularExpression) != nil {
-            // 元のキリル文字入力を追跡
-            self.originalCyrillicInput += text
-
-            // 現在のバッファ（カーソル前）を取得
-            let currentBuffer = self.composingText.convertTargetBeforeCursor
-            let operation = self.cyrillicConverter.process(input: text, composingText: String(currentBuffer))
-
-            // Wait状態（deleteLast=0, input=text）の場合：
-            // キリル文字をdirectスタイルで挿入して、roman2kana変換を回避する
-            // これにより、後続のマッチで正しくサフィックスが取得できる
-            if operation.deleteLast == 0 && operation.input == text {
-                // キリル文字をdirectスタイルで挿入（roman2kana変換を回避）
-                if self.isSelected {
-                    self.deleteSelection()
-                }
-                self.composingText.insertAtCursorPosition(text, inputStyle: .direct)
-                if requireSetResult {
-                    self.setResult()
-                }
-                return
-            } else {
-                if operation.deleteLast > 0 {
-                    self.deleteBackward(convertTargetCount: operation.deleteLast, requireSetResult: false)
-                    // 注: originalCyrillicInputはトリムしない（完全な入力履歴を保持）
-                }
-                // 変換結果（ひらがな）は.directスタイルで挿入（roman2kana変換を回避）
-                self.input(text: operation.input, requireSetResult: requireSetResult, simpleInsert: simpleInsert, inputStyle: .direct)
-                return
+        // Resolve the initial layout too: a keyboard may open without a tab-change action.
+        if inputProfileIdentifier == nil, case let .custard(identifier) = JapaneseKeyboardLayout.value {
+            inputScript = ScriptKanaConverter.Script(rawValue: identifier)
+        }
+        let detectedScript: ScriptKanaConverter.Script? = inputScript ?? (
+            text.unicodeScalars.contains(where: { (0x3100...0x312F).contains($0.value) }) ? .zhuyin :
+            text.unicodeScalars.contains(where: { (0x0600...0x06FF).contains($0.value) || (0xFB50...0xFEFF).contains($0.value) }) ? .arabic : nil)
+        if !simpleInsert, keyboardLanguage != .none, let script = detectedScript,
+           ScriptKanaConverter(script: script).accepts(text) {
+            if isSelected { deleteSelection() }
+            originalCyrillicInput = ""
+            let edit = scriptComposition.append(text, beforeCursor: String(composingText.convertTargetBeforeCursor), script: script)
+            if edit.deleteCount > 0 {
+                composingText.deleteBackwardFromCursorPosition(count: edit.deleteCount)
             }
+            composingText.insertAtCursorPosition(edit.text, inputStyle: .direct)
+            if requireSetResult { setResult() }
+            return
+        }
+        scriptComposition.reset()
+
+        // Process source characters once. A mixed output such as "っк" must not
+        // recursively enter the converter or duplicate the original input.
+        if !simpleInsert, keyboardLanguage != .none,
+           text.range(of: "\\p{Cyrillic}", options: .regularExpression) != nil {
+            if isSelected { deleteSelection() }
+            originalCyrillicInput += text
+            for character in text {
+                let operation = cyrillicConverter.process(input: String(character), composingText: String(composingText.convertTargetBeforeCursor))
+                if operation.deleteLast > 0 {
+                    composingText.deleteBackwardFromCursorPosition(count: operation.deleteLast)
+                }
+                composingText.insertAtCursorPosition(operation.input, inputStyle: .direct)
+            }
+            if requireSetResult { setResult() }
+            return
         }
 
+        originalCyrillicInput = ""
         // 直接入力の条件
         if simpleInsert         // flag
             || text == "\n"     // 改行
@@ -612,6 +645,8 @@ final class InputManager {
     /// テキストの進行方向に削除する
     /// `ab|c → ab|`のイメージ
     @MainActor func deleteForward(count: Int, requireSetResult: Bool = true) {
+        scriptComposition.reset()
+        originalCyrillicInput = ""
         if count < 0 {
             return
         }
@@ -636,6 +671,8 @@ final class InputManager {
     ///   - convertTargetCount: `convertTarget`の文字数。`displayedText`の文字数ではない。
     ///   - requireSetResult: `setResult()`の呼び出しを要求するか。
     @MainActor func deleteBackward(convertTargetCount: Int, requireSetResult: Bool = true) {
+        scriptComposition.reset()
+        originalCyrillicInput = ""
         if convertTargetCount == 0 {
             return
         }
@@ -877,6 +914,8 @@ final class InputManager {
     /// `changeCharacter`を`CustardKit`で扱うためのAPI。
     /// キーボード経由でのみ実行される。
     @MainActor func replaceLastCharacters(table: [String: String], requireSetResult: Bool = true, inputStyle: InputStyle) {
+        scriptComposition.reset()
+        originalCyrillicInput = ""
         debug(table, composingText, isSelected)
         if isSelected {
             if let replace = table[self.composingText.convertTarget] {
@@ -926,6 +965,8 @@ final class InputManager {
     /// カーソル左側の1文字を変更する関数
     /// ひらがなの場合は小書き・濁点・半濁点化し、英字・ギリシャ文字・キリル文字の場合は大文字・小文字化する
     @MainActor func changeCharacter(behavior: ReplaceBehavior, requireSetResult: Bool = true, inputStyle: InputStyle) {
+        scriptComposition.reset()
+        originalCyrillicInput = ""
         if self.isSelected {
             return
         }
@@ -945,6 +986,8 @@ final class InputManager {
 
     /// キーボード経由でのカーソル移動
     @MainActor func moveCursor(count: Int, requireSetResult: Bool = true) {
+        scriptComposition.reset()
+        originalCyrillicInput = ""
         if self.isSelected {
             // ただ横に動かす(選択解除)
             self.displayedTextManager.moveCursor(count: 1)
@@ -978,6 +1021,8 @@ final class InputManager {
     /// ユーザがキーボードを経由せずにカーソルを何かした場合の後処理を行う関数。
     ///  - note: この関数をユーティリティとして用いてはいけない。
     @MainActor func userMovedCursor(count: Int) -> [ActionType] {
+        scriptComposition.reset()
+        originalCyrillicInput = ""
         debug("userによるカーソル移動を検知、今の位置は\(composingText.convertTargetCursorPosition)、動かしたオフセットは\(count)")
         // 選択しているテキストがある場合はリザルトバーを表示する
         if self.isSelected {
@@ -1001,6 +1046,8 @@ final class InputManager {
 
     /// ユーザが行を跨いでカーソルを動かした場合に利用する
     @MainActor func userJumpedCursor() -> [ActionType] {
+        scriptComposition.reset()
+        originalCyrillicInput = ""
         if self.composingText.isEmpty {
             @KeyboardSetting(.displayCursorBarAutomatically) var displayCursorBarAutomatically
             return displayCursorBarAutomatically ? [.setCursorBar(.on)] : []
@@ -1214,7 +1261,8 @@ private extension InputManager {
                         return true
                     }
                 guard !filteredEmojis.isEmpty else { return }
-                var candidates: [any ResultViewItemData] = filteredEmojis.uniqued().prefix(5).map { Self.makeEmojiCandidate(from: $0, composingCount: .surfaceCount(inputData.convertTargetCursorPosition)) }
+                var seenEmojis = Set<String>()
+                var candidates: [any ResultViewItemData] = filteredEmojis.filter { seenEmojis.insert($0).inserted }.prefix(5).map { Self.makeEmojiCandidate(from: $0, composingCount: .surfaceCount(inputData.convertTargetCursorPosition)) }
                 let shortcut = EmojiTabShortcutCandidate()
                 candidates.append(shortcut)
                 await MainActor.run { [weak self] in

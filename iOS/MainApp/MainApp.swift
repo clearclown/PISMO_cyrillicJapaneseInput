@@ -28,6 +28,11 @@ final class MainAppStates: ObservableObject {
         let keyboardActivation = SharedStore.checkKeyboardActivation()
         self.isKeyboardActivated = keyboardActivation
         self.requireFirstOpenView = !keyboardActivation
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--pismo-ui-testing") {
+            self.requireFirstOpenView = false
+        }
+        #endif
         @KeyboardSetting(.japaneseKeyboardLayout) var japaneseKeyboardLayout
         self.japaneseLayout = japaneseKeyboardLayout
         @KeyboardSetting(.englishKeyboardLayout) var englishKeyboardLayout

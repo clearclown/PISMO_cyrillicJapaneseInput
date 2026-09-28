@@ -93,6 +93,11 @@ struct OpenSourceSoftwaresLicenseView: View {
 
     var body: some View {
         Form {
+            Section("Zenzai v3.1 モデル") {
+                Text("zenz-v3.1-small-gguf / zenz-v3.1-xsmall-gguf — Keita Miwa。配布元のモデルを変更せずに同梱しています。")
+                Link("CC BY-SA 4.0", destination: URL(string: "https://creativecommons.org/licenses/by-sa/4.0/")!)
+                Link("モデルの配布元", destination: URL(string: "https://huggingface.co/Miwa-Keita")!)
+            }
             Section {
                 Text("本アプリケーションは多くのオープンソースソフトウェアを用いて作成されています。この場を借りて感謝申し上げます。")
             }
